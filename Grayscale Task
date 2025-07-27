@@ -1,0 +1,66 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load CIFAR-10 dataset
+(x_train, _), (x_test, _) = tf.keras.datasets.cifar10.load_data()
+x_train = x_train.astype('float32') / 255.0
+x_test = x_test.astype('float32') / 255.0
+
+# Convert RGB to Grayscale for training targets
+x_train_gray = tf.image.rgb_to_grayscale(x_train)
+x_test_gray = tf.image.rgb_to_grayscale(x_test)
+
+# Define model input shape
+input_shape = (32, 32, 3)
+
+# Build the model
+model = models.Sequential([
+    layers.Input(shape=input_shape),
+    layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+    layers.MaxPooling2D((2, 2), padding='same'),
+    layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
+    layers.MaxPooling2D((2, 2), padding='same'),
+    layers.Conv2DTranspose(8, (3, 3), strides=2, activation='relu', padding='same'),
+    layers.Conv2DTranspose(16, (3, 3), strides=2, activation='relu', padding='same'),
+    layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same')  # Output: Grayscale
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='mse')
+
+# Train the model with early stopping
+callback = tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)
+model.fit(x_train, x_train_gray, 
+          epochs=10, 
+          batch_size=128, 
+          validation_split=0.1, 
+          callbacks=[callback])
+
+# Predict grayscale images from color inputs
+gray_pred = model.predict(x_test[:10])
+
+# Display original, true grayscale, and predicted grayscale images
+for i in range(5):
+    plt.figure(figsize=(12, 4))
+
+    # Original color image
+    plt.subplot(1, 3, 1)
+    plt.imshow(x_test[i])
+    plt.title("Original")
+    plt.axis('off')
+
+    # Actual grayscale image
+    plt.subplot(1, 3, 2)
+    plt.imshow(x_test_gray[i].numpy().squeeze(), cmap='gray')
+    plt.title("True Grayscale")
+    plt.axis('off')
+
+    # Predicted grayscale image
+    plt.subplot(1, 3, 3)
+    plt.imshow(gray_pred[i].squeeze(), cmap='gray')
+    plt.title("Predicted Grayscale")
+    plt.axis('off')
+
+    plt.show()
